@@ -1,2 +1,2 @@
 # SO
-Trabalho da disciplina de sistemas operacionais  2017.2
+Trabalho da disciplina de sistemas operacionais 2017.2

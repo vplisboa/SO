@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <dirent.h>
 
 #define tamanhoBuffer 1024
 #define tamanhoToken 64
@@ -44,7 +45,38 @@ int comandoCD(char **args)
 
 int comandoDir(char **args)
 {
-  
+	struct dirent **listaArquivos;
+	int n;
+	if (args[1] != NULL)
+	{
+		n = scandir(args[1], &listaArquivos, NULL, alphasort);
+	}
+	else
+	{
+		n=scandir(".",&listaArquivos,NULL,alphasort);
+	}
+	
+	if(n < 0)
+	{
+		perror("scandir");
+		exit(EXIT_FAILURE);
+	}
+	else
+	{
+		int temp = 0;
+		while (temp < n)
+		{
+			if((listaArquivos[temp]->d_name)[0] != '.')
+			{
+				printf("%s  ",listaArquivos[temp]->d_name);
+			}
+			free(listaArquivos[temp]);
+			temp++;
+		}
+		printf("\n");		
+		free(listaArquivos);
+	}
+	return 1;
 }
 
 int comandoHelp(char **args)

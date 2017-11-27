@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -13,12 +14,15 @@ int comandoCD(char **args);
 int comandoHelp(char **args);
 int comandoExit(char **args);
 int comandoDir(char **args);
+int comandoEnviron(char **args);
+
+extern char **environ;
 
 char *lerLinha(void);
 char **separarLinha(char *linha);
 
-char *listaComandos[] = {"cd","help","exit","dir"};
-int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoExit,&comandoDir};
+char *listaComandos[] = {"cd","help","exit","dir","environ"};
+int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoExit,&comandoDir,&comandoEnviron};
 
 int main (int argc, char **argv)
 {
@@ -29,6 +33,13 @@ int main (int argc, char **argv)
 int numeroComandos()
 {
 	return sizeof(listaComandos) / sizeof(char *);
+}
+
+int comandoEnviron(char **args)
+{
+	for (char **env = environ; *env; ++env)
+        printf("%s\n", *env);
+	return 1;
 }
 
 int comandoCD(char **args)
@@ -102,7 +113,7 @@ void loopPrincipal(void)
 	int status;
 	do {
 		fflush(stdout);
-		printf("Pandora>>");
+		printf("Pandora>>  ");
 		linha = lerLinha();
 		comando = separarLinha(linha);
 		status = executar(comando);

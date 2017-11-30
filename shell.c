@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
+#include <linux/limits.h>
 
 #define tamanhoBuffer 1024
 #define tamanhoToken 64
@@ -20,19 +21,15 @@ extern char **environ;
 
 char *lerLinha(void);
 char **separarLinha(char *linha);
-
+char *cwd;
 char *listaComandos[] = {"cd","help","exit","dir","environ"};
 int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoExit,&comandoDir,&comandoEnviron};
 
 int main (int argc, char **argv)
 {
+	cwd = (char*) malloc(sizeof (char)*4096);
 	loopPrincipal();
 	return EXIT_SUCCESS;
-}
-
-int numeroComandos()
-{
-	return sizeof(listaComandos) / sizeof(char *);
 }
 
 int comandoEnviron(char **args)
@@ -45,12 +42,16 @@ int comandoEnviron(char **args)
 int comandoCD(char **args)
 {
   if (args[1] == NULL) {
-    fprintf(stderr, "Argumento Inesperado \n");
+		fflush(stdout);
+    printf("Argumento Inesperado \n");
   } else {
     if (chdir(args[1]) != 0) {
-      perror("Diretório Inexistente");
+			fflush(stdout);
+      printf("Diretório Inexistente\n");
     }
   }
+	cwd = args[1];
+	printf("%s",cwd);
   return 1;
 }
 
@@ -69,7 +70,6 @@ int comandoDir(char **args)
 	
 	if(n < 0)
 	{
-		perror("scandir");
 		exit(EXIT_FAILURE);
 	}
 	else
@@ -93,9 +93,10 @@ int comandoDir(char **args)
 int comandoHelp(char **args)
 {
   int i;
+	int numeroComandos = sizeof(listaComandos) / sizeof(char *);
   printf("Os comandos disponíveis são:\n");
 
-  for (i = 0; i < numeroComandos(); i++) {
+  for (i = 0; i < numeroComandos; i++) {
     printf("  %s\n", listaComandos[i]);
   }
   return 1;
@@ -111,9 +112,11 @@ void loopPrincipal(void)
 	char *linha;
 	char **comando;
 	int status;
+	cwd = getenv("PWD");
 	do {
 		fflush(stdout);
-		printf("Pandora>>  ");
+    getcwd(cwd,PATH_MAX);
+		printf("%s/myshell >>  ",cwd);
 		linha = lerLinha();
 		comando = separarLinha(linha);
 		status = executar(comando);
@@ -130,7 +133,8 @@ char *lerLinha(void)
 	int temp;
 
 	if (!buffer) {
-    fprintf(stderr, "Erro de alocação\n");
+		fflush(stdout);
+    printf("Erro de alocação\n");
     exit(EXIT_FAILURE);
   }
 
@@ -153,7 +157,8 @@ char *lerLinha(void)
       tamanho += tamanhoBuffer;
       buffer = realloc(buffer, tamanho);
       if (!buffer) {
-        fprintf(stderr, "Erro de alocação\n");
+				fflush(stdout);
+        printf("Erro de alocação\n");
         exit(EXIT_FAILURE);
       }
     }
@@ -169,7 +174,8 @@ char **separarLinha(char *linha)
 
 	if(!tokens)
 	{
-		fprintf(stderr,"Erro na alocação.\n");
+		fflush(stdout);
+		printf("Erro na alocação.\n");
 		exit(EXIT_FAILURE);
 	}
 	token = strtok(linha,limitadorToken);
@@ -183,7 +189,8 @@ char **separarLinha(char *linha)
 			tokens = realloc(tokens,tamanho *sizeof(char*));
 			if(!tokens)
 			{
-				fprintf(stderr,"Erro na alocação.\n");
+				fflush(stdout);
+				printf("Erro na alocação.\n");
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -203,13 +210,15 @@ int executaFork(char **args)
 	{
 		if(execvp(args[0],args) == -1)
 		{
-			perror("Erro no filho");
+			fflush(stdout);
+			printf("Comando inválido\n");
 		}
 		exit(EXIT_FAILURE);
 	}
 	else if (filho < 0)
 	{
-		perror("Erro no filho");
+		fflush(stdout);
+		printf("Comando inválido\n");
 	}
 	else
 	{
@@ -222,12 +231,13 @@ int executaFork(char **args)
 
 int executar(char **args)
 {
+	int numeroComandos = sizeof(listaComandos) / sizeof(char *);
 	if(args[0] == NULL)
 	{
 		return 1;
 	}
 
-	for (int i = 0;i<numeroComandos();i++)
+	for (int i = 0;i<numeroComandos;i++)
 	{
 		if(strcmp(args[0],listaComandos[i]) == 0)
 		{

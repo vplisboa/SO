@@ -7,21 +7,21 @@
 #include <dirent.h>
 #include <linux/limits.h>
 
-#define tamanhoBuffer 1024
+#define tamanhoBuffer 4096
 #define tamanhoToken 64
-#define limitadorToken " \t\r\n\a"
+#define limitadorToken " \t\r\n\a" //limitadores utilizados para comparação do strtok
 
 int comandoCD(char **args);
 int comandoHelp(char **args);
-int comandoExit(char **args);
+int comandoQuit(char **args);
 int comandoDir(char **args);
 int comandoEnviron(char **args);
 int ehBackground = 0;
-int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoExit,&comandoDir,&comandoEnviron};
+int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoQuit,&comandoDir,&comandoEnviron};
 char *lerLinha(void);
 char **separarLinha(char *linha);
 char *caminho;
-char *listaComandos[] = {"cd","help","exit","dir","environ"};
+char *listaComandos[] = {"cd","help","quit","dir","environ"};
 extern char **environ;
 
 FILE* arquivo;
@@ -44,8 +44,9 @@ int main (int argc, char **argv)
 		}
 		fclose(arquivo);
 	}
-
-	loopPrincipal(); //executa o loop principal da shell
+	else //executa o loop principal se nenhum arquivo for passado como argumento
+		loopPrincipal(); //executa o loop principal da shell
+	
 	return EXIT_SUCCESS;
 }
 
@@ -113,7 +114,7 @@ int comandoDir(char **args)
 	
 	if(totalArquivosDiretorio < 0)
 	{
-		exit(EXIT_FAILURE);
+		printf("Diretório vazio ou inexistente\n");
 	}
 	else
 	{
@@ -122,7 +123,7 @@ int comandoDir(char **args)
 		{
 			if((listaArquivos[temp]->d_name)[0] != '.') //remove os arquivos que começam com "."
 			{
-				printf("%s  ",listaArquivos[temp]->d_name);
+				printf("%s\n",listaArquivos[temp]->d_name);
 			}
 			free(listaArquivos[temp]);
 			temp++;
@@ -136,19 +137,20 @@ int comandoDir(char **args)
 int comandoHelp(char **args)
 {
   int contador;
-	int numeroComandos = sizeof(listaComandos) / sizeof(char *);
+	int numeroComandos = sizeof(listaComandos) / sizeof(char *); //calcula o tamanho da lista listaComandos
   printf("Os comandos disponíveis são:\n");
 
   for (contador = 0; contador < numeroComandos; contador++)
 	{
-    printf("  %s\n", listaComandos[contador]);
+    printf("%s  ", listaComandos[contador]);
   }
+	printf("\n");
   return 1;
 }
 
-int comandoExit(char **args)
+int comandoQuit(char **args)
 {
-  return 0;
+  return 0; //retorna 0(critério de saída do loop principal)
 }
 
 char *lerLinha(void)
@@ -166,9 +168,9 @@ char *lerLinha(void)
 
   while (1) {
     temp = getchar();
-    if (temp == EOF)
+    if (temp == EOF) //verificação criada para acertar bug do ctrl-d na shell, que fazia com que o path fosse printado ao lado
 		{
-			printf("\n");
+			printf("\n"); 
 			exit(0);
     }	
 
@@ -206,31 +208,29 @@ char **separarLinha(char *linha)
 
 	if(!tokens)
 	{
-		fflush(stdout);
 		exit(EXIT_FAILURE);
 	}
 
-	token = strtok(linha,limitadorToken);
+	token = strtok(linha,limitadorToken); // utilizado para transformar a string em um token, prestando atenção aos limitadores(limitadorToken)
 	while(token != NULL)
 	{
 		tokens[posicaoBuffer] = token;
 
-		if(strcmp("&",token) == 0)
+		if(strcmp("&",token) == 0)//verifica se foi passado um & junto com o comando (para rodar o mesmo em background)
 		{
-			ehBackground = 1;
+			ehBackground = 1; //seta a variavel que diz que o proximo comando deve rodar em background
 			tokens[posicaoBuffer] = NULL;
 		}
 		else
 			ehBackground = 0;
 
 		posicaoBuffer++;
-		if(posicaoBuffer >= tamanho)
+		if(posicaoBuffer >= tamanho) //verificação para ver se é necessário realocar o tamanho do vetor
 		{
 			tamanho += tamanhoToken;
-			tokens = realloc(tokens,tamanho *sizeof(char*));
+			tokens = realloc(tokens,tamanho *sizeof(char*)); //realoca o tamanho do vetor
 			if(!tokens)
 			{
-				fflush(stdout);
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -242,31 +242,29 @@ char **separarLinha(char *linha)
 
 int executaFork(char **args)
 {
-	pid_t filho;
+	pid_t filho; //inicializa um processo filho
 	int status;
 
-	filho = fork();
+	filho = fork();//cria o processo filho como uma cópia do processo atual
 	if (filho == 0)
 	{	
-		if(execvp(args[0],args) == -1)
+		if(execvp(args[0],args) == -1) //verifica se o comando dado é válido verificando o retorno do execvp utilizando o comando dado
+		//o primeiro argumento passado para o execvp vai ser carregado no endereço de quem o chamar, e sobrescrever o programa que está ali
+		//o segundo argumento vai ser passado para o programa e começar a execução.
+		//processo do filho é substituido pelo processo do comando a ser executado.
 		{
 			fflush(stdout);
 			printf("Comando inválido\n");
 		}
 		exit(EXIT_FAILURE);
 	}
-	else if (filho < 0)
-	{
-		fflush(stdout);
-		printf("Comando inválido\n");
-	}
 	else
 	{
-		if(ehBackground == 0)
+		if(ehBackground == 0) //pai não precisa esperar se o processo não for em background
 		{	
 			do{
-				waitpid(filho,&status,0);		
-			} while(!WIFEXITED(status) && !WIFSIGNALED(status));
+				waitpid(filho,&status,0);	//processo pai espera uma mudança no status do filho
+			} while(!WIFEXITED(status) && !WIFSIGNALED(status)); //o processo fica rodando enquando o filho não for terminado por um sinal(WIFSIGNALED) e se o filho terminou normalmente(WIFEXITED)
 		}
 	}
 	return 1;
@@ -282,7 +280,7 @@ int executar(char **args)
 
 	for (int i = 0;i<numeroComandos;i++)
 	{
-		if(strcmp(args[0],listaComandos[i]) == 0)
+		if(strcmp(args[0],listaComandos[i]) == 0) //compara o comando passado com a lista de comandos disponível
 		{
 			return (*listaFuncoes[i])(args);
 		}		

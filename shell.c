@@ -27,8 +27,9 @@ int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoExit,&comando
 
 int main (int argc, char **argv)
 {
-	cwd = (char*) malloc(sizeof (char)*4096);
+	cwd = (char*) malloc(sizeof(char)*1024);
 	loopPrincipal();
+	free(cwd);
 	return EXIT_SUCCESS;
 }
 
@@ -50,8 +51,7 @@ int comandoCD(char **args)
       printf("Diretório Inexistente\n");
     }
   }
-	cwd = args[1];
-	printf("%s",cwd);
+	cwd = getenv("PWD");
   return 1;
 }
 
@@ -115,7 +115,7 @@ void loopPrincipal(void)
 	cwd = getenv("PWD");
 	do {
 		fflush(stdout);
-    getcwd(cwd,PATH_MAX);
+   		getcwd(cwd,1024);
 		printf("%s/myshell >>  ",cwd);
 		linha = lerLinha();
 		comando = separarLinha(linha);

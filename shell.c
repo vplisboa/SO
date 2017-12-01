@@ -31,22 +31,44 @@ int main (int argc, char **argv)
 {
 	char linhaArquivo[256];
 	caminho = (char*) malloc(sizeof(char)*tamanhoBuffer);
-	if(argc > 1)
+	if(argc > 1) //verifica se foi passado um arquivo como argumento
 	{
-		arquivo = fopen(argv[1],"r");
+		arquivo = fopen(argv[1],"r"); //lê o arquivo de comandos
 		if(arquivo != NULL)
 		{	
-			while (fgets(linhaArquivo,sizeof(linhaArquivo),arquivo)) {
-				executar(separarLinha(linhaArquivo));
+			while (fgets(linhaArquivo,sizeof(linhaArquivo),arquivo)) //lê o arquivo e pega os comandos
+			{
+				printf("comando executado: %s",linhaArquivo); //printa os comandos executados(que estavam no arquivo passado como parâmetro)
+				executar(separarLinha(linhaArquivo)); //executa cada comando da lista
     	}
 		}
 		fclose(arquivo);
 	}
 
-	loopPrincipal();
+	loopPrincipal(); //executa o loop principal da shell
 	return EXIT_SUCCESS;
 }
 
+void loopPrincipal(void)
+{
+	char *linha;
+	char **comando;
+	int status;
+	caminho = getenv("PWD");
+	do {
+		fflush(stdout);
+   	getcwd(caminho,1024);
+		printf("<%s/myshell>>  ",caminho);
+		linha = lerLinha();
+		comando = separarLinha(linha);
+		status = executar(comando);
+		free(linha);
+		free(comando);
+	}
+	while(status); //enquanto não retornar 0, continua
+}
+
+//função que é executada quando é utilizado o comando environ
 int comandoEnviron(char **args)
 {
 	for (char **env = environ; *env; ++env)
@@ -54,44 +76,51 @@ int comandoEnviron(char **args)
 	return 1;
 }
 
+//função que é executada quando é utilizado o comando CD
 int comandoCD(char **args)
 {
-  if (args[1] == NULL) {
+  if (args[1] == NULL) //verifica o argumento passado
+	{
 		fflush(stdout);
     printf("Argumento Inesperado \n");
-  } else {
-    if (chdir(args[1]) != 0) {
+  }
+
+	else
+	{
+    if (chdir(args[1]) != 0)
+		{
 			fflush(stdout);
       printf("Diretório Inexistente\n");
     }
   }
-	caminho = getenv("PWD");
+	caminho = getenv("PWD"); //atualiza a variável caminho, que é utilizada no loop principal, que contém o path atual
   return 1;
 }
 
+//função que é executada quando é utilizado o comando dir
 int comandoDir(char **args)
 {
-	struct dirent **listaArquivos;
-	int n;
+	struct dirent **listaArquivos; //cria struct que tem as descrições dos arquivos
+	int totalArquivosDiretorio;
 	if (args[1] != NULL)
 	{
-		n = scandir(args[1], &listaArquivos, NULL, alphasort);
+		totalArquivosDiretorio = scandir(args[1], &listaArquivos, NULL, alphasort); //recupera total de arquivos no diretorio passado
 	}
 	else
 	{
-		n=scandir(".",&listaArquivos,NULL,alphasort);
+		totalArquivosDiretorio=scandir(".",&listaArquivos,NULL,alphasort); //se nenhum diretório for passado como parâmetro, recupera do diretório atual
 	}
 	
-	if(n < 0)
+	if(totalArquivosDiretorio < 0)
 	{
 		exit(EXIT_FAILURE);
 	}
 	else
 	{
 		int temp = 0;
-		while (temp < n)
+		while (temp < totalArquivosDiretorio)
 		{
-			if((listaArquivos[temp]->d_name)[0] != '.')
+			if((listaArquivos[temp]->d_name)[0] != '.') //remove os arquivos que começam com "."
 			{
 				printf("%s  ",listaArquivos[temp]->d_name);
 			}
@@ -106,12 +135,13 @@ int comandoDir(char **args)
 
 int comandoHelp(char **args)
 {
-  int i;
+  int contador;
 	int numeroComandos = sizeof(listaComandos) / sizeof(char *);
   printf("Os comandos disponíveis são:\n");
 
-  for (i = 0; i < numeroComandos; i++) {
-    printf("  %s\n", listaComandos[i]);
+  for (contador = 0; contador < numeroComandos; contador++)
+	{
+    printf("  %s\n", listaComandos[contador]);
   }
   return 1;
 }
@@ -121,25 +151,6 @@ int comandoExit(char **args)
   return 0;
 }
 
-void loopPrincipal(void)
-{
-	char *linha;
-	char **comando;
-	int status;
-	caminho = getenv("PWD");
-	do {
-		fflush(stdout);
-   		getcwd(caminho,1024);
-		printf("%s/myshell >>  ",caminho);
-		linha = lerLinha();
-		comando = separarLinha(linha);
-		status = executar(comando);
-		free(linha);
-		free(comando);
-	}
-	while(status);
-}
-
 char *lerLinha(void)
 {
 	int tamanho = tamanhoBuffer;
@@ -147,32 +158,39 @@ char *lerLinha(void)
 	char *buffer = malloc(sizeof(char) * tamanho);
 	int temp;
 
-	if (!buffer) {
+	if (!buffer)
+	{
 		fflush(stdout);
-    printf("Erro de alocação\n");
     exit(EXIT_FAILURE);
   }
 
   while (1) {
     temp = getchar();
-    if (temp == EOF) {
+    if (temp == EOF)
+		{
 			printf("\n");
 			exit(0);
     }	
-    if (temp == '\n') {
+
+    if (temp == '\n')
+		{
       buffer[posicaoBuffer] = '\0';
       return buffer;
-    } else {
+    }
+
+		else
+		{
       buffer[posicaoBuffer] = temp;
     }
     posicaoBuffer++;
 
-    if (posicaoBuffer >= tamanho) {
+    if (posicaoBuffer >= tamanho)
+		{
       tamanho += tamanhoBuffer;
       buffer = realloc(buffer, tamanho);
-      if (!buffer) {
+      if (!buffer)
+			{
 				fflush(stdout);
-        printf("Erro de alocação\n");
         exit(EXIT_FAILURE);
       }
     }
@@ -189,9 +207,9 @@ char **separarLinha(char *linha)
 	if(!tokens)
 	{
 		fflush(stdout);
-		printf("Erro na alocação.\n");
 		exit(EXIT_FAILURE);
 	}
+
 	token = strtok(linha,limitadorToken);
 	while(token != NULL)
 	{
@@ -213,7 +231,6 @@ char **separarLinha(char *linha)
 			if(!tokens)
 			{
 				fflush(stdout);
-				printf("Erro na alocação.\n");
 				exit(EXIT_FAILURE);
 			}
 		}

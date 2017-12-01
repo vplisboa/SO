@@ -17,19 +17,20 @@ int comandoExit(char **args);
 int comandoDir(char **args);
 int comandoEnviron(char **args);
 int ehBackground = 0;
-extern char **environ;
-FILE* arquivo;
+int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoExit,&comandoDir,&comandoEnviron};
 char *lerLinha(void);
 char **separarLinha(char *linha);
-char *cwd;
+char *caminho;
 char *listaComandos[] = {"cd","help","exit","dir","environ"};
-int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoExit,&comandoDir,&comandoEnviron};
+extern char **environ;
+
+FILE* arquivo;
 pid_t sid;
 
 int main (int argc, char **argv)
 {
 	char linhaArquivo[256];
-	cwd = (char*) malloc(sizeof(char)*1024);
+	caminho = (char*) malloc(sizeof(char)*tamanhoBuffer);
 	if(argc > 1)
 	{
 		arquivo = fopen(argv[1],"r");
@@ -64,7 +65,7 @@ int comandoCD(char **args)
       printf("Diretório Inexistente\n");
     }
   }
-	cwd = getenv("PWD");
+	caminho = getenv("PWD");
   return 1;
 }
 
@@ -125,17 +126,18 @@ void loopPrincipal(void)
 	char *linha;
 	char **comando;
 	int status;
-	cwd = getenv("PWD");
+	caminho = getenv("PWD");
 	do {
 		fflush(stdout);
-   		getcwd(cwd,1024);
-		printf("%s/myshell >>  ",cwd);
+   		getcwd(caminho,1024);
+		printf("%s/myshell >>  ",caminho);
 		linha = lerLinha();
 		comando = separarLinha(linha);
 		status = executar(comando);
 		free(linha);
 		free(comando);
-	} while(status);
+	}
+	while(status);
 }
 
 char *lerLinha(void)
@@ -198,7 +200,7 @@ char **separarLinha(char *linha)
 		if(strcmp("&",token) == 0)
 		{
 			ehBackground = 1;
-			printf("Deus no céu, silvana na terra\n");
+			tokens[posicaoBuffer] = NULL;
 		}
 		else
 			ehBackground = 0;
@@ -228,7 +230,7 @@ int executaFork(char **args)
 
 	filho = fork();
 	if (filho == 0)
-	{
+	{	
 		if(execvp(args[0],args) == -1)
 		{
 			fflush(stdout);

@@ -16,20 +16,33 @@ int comandoHelp(char **args);
 int comandoExit(char **args);
 int comandoDir(char **args);
 int comandoEnviron(char **args);
-
+int ehBackground = 0;
 extern char **environ;
-
+FILE* arquivo;
 char *lerLinha(void);
 char **separarLinha(char *linha);
 char *cwd;
 char *listaComandos[] = {"cd","help","exit","dir","environ"};
 int (*listaFuncoes[]) (char **) = {&comandoCD,&comandoHelp,&comandoExit,&comandoDir,&comandoEnviron};
+pid_t sid;
 
 int main (int argc, char **argv)
 {
+	char linhaArquivo[256];
 	cwd = (char*) malloc(sizeof(char)*1024);
+	if(argc > 1)
+	{
+		arquivo = fopen(argv[1],"r");
+		if(arquivo != NULL)
+		{	
+			while (fgets(linhaArquivo,sizeof(linhaArquivo),arquivo)) {
+				executar(separarLinha(linhaArquivo));
+    	}
+		}
+		fclose(arquivo);
+	}
+
 	loopPrincipal();
-	free(cwd);
 	return EXIT_SUCCESS;
 }
 
@@ -140,10 +153,9 @@ char *lerLinha(void)
 
   while (1) {
     temp = getchar();
-
     if (temp == EOF) {
-	printf("\n");
-	exit(0);
+			printf("\n");
+			exit(0);
     }	
     if (temp == '\n') {
       buffer[posicaoBuffer] = '\0';
@@ -182,6 +194,15 @@ char **separarLinha(char *linha)
 	while(token != NULL)
 	{
 		tokens[posicaoBuffer] = token;
+
+		if(strcmp("&",token) == 0)
+		{
+			ehBackground = 1;
+			printf("Deus no céu, silvana na terra\n");
+		}
+		else
+			ehBackground = 0;
+
 		posicaoBuffer++;
 		if(posicaoBuffer >= tamanho)
 		{
@@ -222,9 +243,12 @@ int executaFork(char **args)
 	}
 	else
 	{
-		do{
-			waitpid(filho,&status,WUNTRACED);		
-		} while(!WIFEXITED(status) && !WIFSIGNALED(status));
+		if(ehBackground == 0)
+		{	
+			do{
+				waitpid(filho,&status,0);		
+			} while(!WIFEXITED(status) && !WIFSIGNALED(status));
+		}
 	}
 	return 1;
 }
